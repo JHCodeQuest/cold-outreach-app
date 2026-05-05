@@ -1,63 +1,78 @@
-# Cold Outreach Tool
+# GBP Review Tool - Sales Outreach
 
-A lightweight web app for sending cold emails and DMs on LinkedIn and Twitter (X).
+A lightweight bulk email tool for selling your **GBP Review Alert + AI Reply Generator** to local service businesses.
+
+## About the Product
+
+This tool helps local service businesses:
+- Get instant alerts when new Google Business Profile reviews come in
+- Generate professional AI-powered replies in seconds
+- Save hours of manual review management
+
+**Portfolio:** https://jhcodequest.github.io/#about
 
 ## Features
 
-- Send cold emails via SMTP (Gmail supported)
-- Send LinkedIn DMs via LinkedIn API
-- Send Twitter/X DMs via Twitter API v2
-- Message templates for quick outreach
+- Bulk email sending via Gmail SMTP
+- CSV contact list upload (name, email, company columns)
+- Personalized templates with `{{field}}` variables
+- Pre-built templates for selling the GBP tool
+- Adjustable delay between emails (avoid spam filters)
 
 ## Setup
 
-1. Clone/copy this directory
+1. Clone the repo:
+   ```bash
+   git clone https://github.com/JHCodeQuest/cold-outreach-app.git
+   cd cold-outreach-app
+   ```
+
 2. Install dependencies:
    ```bash
    npm install
    ```
 
-3. Create a `.env` file (copy from `.env.example`):
+3. Create `.env` file:
    ```bash
    cp .env.example .env
    ```
 
-4. Configure your credentials in `.env`:
-   - **Email**: Use Gmail App Password (not regular password)
-   - **LinkedIn**: Get access token from LinkedIn Developers
-   - **Twitter**: Create app at developer.twitter.com
+4. Configure Gmail credentials in `.env`:
+   - **SMTP_USER**: Your Gmail address
+   - **SMTP_PASS**: Use Gmail App Password (requires 2FA enabled)
+   - Get App Password: Google Account → Security → App Passwords
 
 5. Start the app:
    ```bash
    npm start
    ```
 
-6. Open http://localhost:3000
+6. Open http://localhost:3456
 
-## API Setup
+## CSV Format
 
-### Gmail
-1. Enable 2FA on your Google account
-2. Generate App Password: Google Account → Security → App Passwords
-3. Use the app password in `SMTP_PASS`
+Upload a CSV with columns like:
+```csv
+name,email,company
+John Doe,john@acmepainting.com,Acme Painting
+Jane Smith,jane@bestplumbing.com,Best Plumbing LLC
+```
 
-### LinkedIn
-1. Create app at https://www.linkedin.com/developers/
-2. Request `r_liteprofile`, `w_messages` permissions
-3. Get access token
+## Email Templates
 
-### Twitter/X
-1. Create app at https://developer.twitter.com/
-2. Enable "Read and Write" permissions
-3. Get Bearer Token and Access Token
+Three pre-built templates for selling your GBP tool:
+1. **Intro** - Introduce the tool and its benefits
+2. **Pain Point** - Focus on lost customers from bad reviews
+3. **Acquisition** - Direct pitch to acquire the SaaS tool
 
 ## Usage
 
-- Select tab (Email/LinkedIn/Twitter)
-- Choose a template or write custom message
-- Fill in recipient details
-- Click send
+1. Upload your CSV contact list
+2. Select a template or write custom message
+3. Personalize with `{{name}}`, `{{company}}` variables
+4. Set delay (2-5 seconds recommended)
+5. Click "Send Emails"
 
-## Note
+## Portfolio
 
-LinkedIn and Twitter integrations require API access which may need approval. For testing, the app will return simulation mode if credentials aren't configured.
+Check out all my projects: https://jhcodequest.github.io/#about
