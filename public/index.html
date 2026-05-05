@@ -113,6 +113,7 @@
 
         if (data.success) {
           contacts = data.contacts;
+          console.log('Contacts loaded:', contacts.length);
           showStatus('upload-status', 'Loaded ' + data.count + ' contacts. Columns: ' + data.columns.join(', '), 'success');
           showPreview(data.contacts);
           updateFields(data.columns);
