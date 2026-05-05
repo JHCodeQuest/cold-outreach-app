@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bulk Email Sender</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; padding: 20px; }
+    .container { max-width: 900px; margin: 0 auto; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    .header { background: #1a73e8; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
+    .header h1 { font-size: 24px; margin-bottom: 5px; }
+    .header p { font-size: 14px; opacity: 0.9; }
+    .content { padding: 30px; }
+    .section { margin-bottom: 30px; padding-bottom: 30px; border-bottom: 1px solid #eee; }
+    .section:last-child { border-bottom: none; }
+    label { display: block; margin-bottom: 8px; font-weight: 500; color: #333; }
+    input, textarea, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+    textarea { min-height: 120px; resize: vertical; }
+    .btn { background: #1a73e8; color: white; padding: 12px 24px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; margin-right: 10px; }
+    .btn:hover { background: #1557b0; }
+    .btn:disabled { background: #ccc; cursor: not-allowed; }
+    .btn-secondary { background: #6c757d; }
+    .btn-secondary:hover { background: #5a6268; }
+    .contacts-preview { margin-top: 15px; max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; }
+    .contact-row { padding: 8px 12px; border-bottom: 1px solid #eee; font-size: 13px; }
+    .contact-row:last-child { border-bottom: none; }
+    .status { margin-top: 15px; padding: 12px; border-radius: 4px; display: none; }
+    .status.show { display: block; }
+    .status.success { background: #d4edda; color: #155724; }
+    .status.error { background: #f8d7da; color: #721c24; }
+    .status.info { background: #d1ecf1; color: #0c5460; }
+    .template-select { margin-bottom: 15px; }
+    .progress { margin-top: 15px; }
+    .progress-bar { width: 100%; height: 20px; background: #eee; border-radius: 10px; overflow: hidden; }
+    .progress-fill { height: 100%; background: #1a73e8; transition: width 0.3s; }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 15px; }
+    .stat { padding: 15px; background: #f8f9fa; border-radius: 4px; text-align: center; }
+    .stat-value { font-size: 24px; font-weight: bold; color: #1a73e8; }
+    .stat-label { font-size: 12px; color: #666; margin-top: 5px; }
+    .hint { font-size: 12px; color: #666; margin-top: 5px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Bulk Email Sender</h1>
+      <p>Upload a CSV with contacts and send personalized cold emails</p>
+    </div>
+    
+    <div class="content">
+      <div class="section">
+        <h2>1. Upload Contact List</h2>
+        <p class="hint">CSV should have columns like: email, name, company, etc.</p>
+        <input type="file" id="csv-file" accept=".csv" style="margin-top: 10px;">
+        <button class="btn btn-secondary" onclick="uploadCSV()" style="margin-top: 10px;">Upload</button>
+        <div id="contacts-preview" class="contacts-preview" style="display: none;"></div>
+        <div id="upload-status" class="status"></div>
+      </div>
+      
+      <div class="section">
+        <h2>2. Compose Email</h2>
+        <div class="template-select">
+          <label>Templates:</label>
+          <select id="template" onchange="loadTemplate()">
+            <option value="">Select a template...</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>From:</label>
+          <input type="email" id="from" placeholder="your@email.com">
+        </div>
+        <div class="form-group">
+          <label>Subject (use {{field}} for personalization):</label>
+          <input type="text" id="subject" placeholder="Quick question about {{company}}">
+        </div>
+        <div class="form-group">
+          <label>Message (use {{field}} for personalization):</label>
+          <textarea id="body" placeholder="Hi {{name}},&#10;&#10;I came across {{company}}..."></textarea>
+        </div>
+        <div class="hint">Available fields: <span id="available-fields">upload a CSV first</span></div>
+      </div>
+      
+      <div class="section">
+        <h2>3. Send</h2>
+        <div class="form-group">
+          <label>Delay between emails (seconds):</label>
+          <input type="number" id="delay" value="2" min="0" max="60" style="width: 200px;">
+          <span class="hint" style="margin-left: 10px; display: inline;">Helps avoid spam filters</span>
+        </div>
+        <button class="btn" onclick="sendBulk()" id="send-btn">Send Emails</button>
+        <div id="send-status" class="status"></div>
+        <div class="progress" id="progress" style="display: none;">
+          <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+          <div class="stats" id="stats"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    let contacts = [];
+    let templates = [];
+    
+    const uploadCSV = async () => {
+      const fileInput = document.getElementById('csv-file');
+      const status = document.getElementById('upload-status');
+      status.className = 'status';
+      
+      if (!fileInput.files.length) {
+        showStatus('upload-status', 'Please select a CSV file', 'error');
+        return;
+      }
+      
+      const formData = new FormData();
+      formData.append('csv', fileInput.files[0]);
+      
+      try {
+        const response = await fetch('/api/upload-csv', { method: 'POST', body: formData });
+        const data = await response.json();
+        
+        if (data.success) {
+          contacts = data.contacts;
+          showStatus('upload-status', `Loaded ${data.count} contacts`, 'success');
+          showPreview(data.contacts);
+          updateFields(Object.keys(data.contacts[0] || {}));
+        } else {
+          showStatus('upload-status', 'Error: ' + data.error, 'error');
+        }
+      } catch (error) {
+        showStatus('upload-status', 'Error: ' + error.message, 'error');
+      }
+    };
+    
+    const showPreview = (contacts) => {
+      const preview = document.getElementById('contacts-preview');
+      preview.style.display = 'block';
+      preview.innerHTML = contacts.slice(0, 5).map(c => 
+        `<div class="contact-row">${JSON.stringify(c)}</div>`
+      ).join('') + (contacts.length > 5 ? `<div class="contact-row">...and ${contacts.length - 5} more</div>` : '');
+    };
+    
+    const updateFields = (fields) => {
+      document.getElementById('available-fields').textContent = fields.join(', ');
+    };
+    
+    const loadTemplates = async () => {
+      const response = await fetch('/api/templates');
+      templates = await response.json();
+      const select = document.getElementById('template');
+      templates.forEach(t => {
+        const option = document.createElement('option');
+        option.value = t.id;
+        option.textContent = t.name;
+        select.appendChild(option);
+      });
+    };
+    
+    const loadTemplate = () => {
+      const select = document.getElementById('template');
+      const templateId = parseInt(select.value);
+      if (!templateId) return;
+      const template = templates.find(t => t.id === templateId);
+      if (template) {
+        document.getElementById('subject').value = template.subject;
+        document.getElementById('body').value = template.body;
+      }
+    };
+    
+    const sendBulk = async () => {
+      const btn = document.getElementById('send-btn');
+      btn.disabled = true;
+      
+      const status = document.getElementById('send-status');
+      const progress = document.getElementById('progress');
+      status.className = 'status';
+      
+      if (!contacts.length) {
+        showStatus('send-status', 'Please upload a contact list first', 'error');
+        btn.disabled = false;
+        return;
+      }
+      
+      const from = document.getElementById('from').value;
+      const subject = document.getElementById('subject').value;
+      const body = document.getElementById('body').value;
+      const delay = parseInt(document.getElementById('delay').value) || 2;
+      
+      if (!from || !subject || !body) {
+        showStatus('send-status', 'Please fill in all fields', 'error');
+        btn.disabled = false;
+        return;
+      }
+      
+      progress.style.display = 'block';
+      showStatus('send-status', 'Sending emails...', 'info');
+      
+      try {
+        const response = await fetch('/api/send-bulk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contacts, subject, body, from, delay })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          showStatus('send-status', `Complete! Sent: ${data.results.sent}, Failed: ${data.results.failed}`, 
+            data.results.failed > 0 ? 'error' : 'success');
+          document.getElementById('stats').innerHTML = `
+            <div class="stat"><div class="stat-value">${data.results.sent}</div><div class="stat-label">Sent</div></div>
+            <div class="stat"><div class="stat-value">${data.results.failed}</div><div class="stat-label">Failed</div></div>
+            <div class="stat"><div class="stat-value">${contacts.length}</div><div class="stat-label">Total</div></div>
+          `;
+        }
+      } catch (error) {
+        showStatus('send-status', 'Error: ' + error.message, 'error');
+      }
+      
+      btn.disabled = false;
+    };
+    
+    const showStatus = (id, message, type) => {
+      const el = document.getElementById(id);
+      el.textContent = message;
+      el.className = `status show ${type}`;
+    };
+    
+    loadTemplates();
+  </script>
+</body>
+</html>
