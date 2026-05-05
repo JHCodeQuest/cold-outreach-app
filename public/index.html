@@ -106,28 +106,35 @@
       const fileInput = document.getElementById('csv-file');
       const status = document.getElementById('upload-status');
       status.className = 'status';
-      
+
       if (!fileInput.files.length) {
         showStatus('upload-status', 'Please select a CSV file', 'error');
         return;
       }
-      
+
       const formData = new FormData();
       formData.append('csv', fileInput.files[0]);
-      
+
       try {
+        showStatus('upload-status', 'Uploading...', 'info');
         const response = await fetch('/api/upload-csv', { method: 'POST', body: formData });
         const data = await response.json();
-        
+
+        console.log('Upload response:', data);
+
         if (data.success) {
           contacts = data.contacts;
-          showStatus('upload-status', `Loaded ${data.count} contacts`, 'success');
+          console.log('Contacts loaded:', contacts.length);
+          showStatus('upload-status', `Loaded ${data.count} contacts. Columns: ${data.columns.join(', ')}`, 'success');
           showPreview(data.contacts);
-          updateFields(Object.keys(data.contacts[0] || {}));
+          updateFields(data.columns);
         } else {
-          showStatus('upload-status', 'Error: ' + data.error, 'error');
+          const hint = data.hint ? ` ${data.hint}` : '';
+          const cols = data.columns ? ` Found columns: ${data.columns.join(', ')}` : '';
+          showStatus('upload-status', 'Error: ' + data.error + cols + hint, 'error');
         }
       } catch (error) {
+        console.error('Upload error:', error);
         showStatus('upload-status', 'Error: ' + error.message, 'error');
       }
     };

@@ -3,27 +3,65 @@ const router = express.Router();
 const multer = require('multer');
 const csv = require('csv-parser');
 const fs = require('fs');
-const emailService = require('../services/email');
 
-const upload = multer({ dest: 'uploads/' });
+const upload = multer({
+  dest: 'uploads/',
+  fileFilter: (req, file, cb) => {
+    if (!file.originalname.endsWith('.csv')) {
+      return cb(new Error('Only CSV files are allowed'));
+    }
+    cb(null, true);
+  }
+});
 
 router.post('/upload-csv', upload.single('csv'), (req, res) => {
+  console.log('Upload request received:', req.file ? req.file.originalname : 'No file');
+
   if (!req.file) {
-    return res.status(400).json({ success: false, error: 'No file uploaded' });
+    console.log('No file in request');
+    return res.status(400).json({ success: false, error: 'No file uploaded. Make sure you selected a CSV file.' });
   }
 
+  console.log('File uploaded:', req.file.path, req.file.originalname);
+
   const contacts = [];
+  let columns = [];
+  let rowCount = 0;
+
   fs.createReadStream(req.file.path)
     .pipe(csv())
     .on('data', (row) => {
+      rowCount++;
+      if (columns.length === 0) {
+        columns = Object.keys(row);
+        console.log('CSV columns:', columns);
+      }
       contacts.push(row);
     })
     .on('end', () => {
+      console.log(`CSV parsed: ${rowCount} rows, ${contacts.length} contacts`);
       fs.unlinkSync(req.file.path);
-      res.json({ success: true, contacts, count: contacts.length });
+
+      if (contacts.length === 0) {
+        return res.status(400).json({ success: false, error: 'CSV file is empty or has no valid data' });
+      }
+
+      const emailFields = columns.filter(c => c.toLowerCase().includes('email'));
+      if (emailFields.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'No email column found in CSV. Your columns: ' + columns.join(', '),
+          columns: columns,
+          hint: 'Add a column named "email", "Email", or similar to your CSV'
+        });
+      }
+
+      console.log('Sending response with', contacts.length, 'contacts');
+      res.json({ success: true, contacts, count: contacts.length, columns });
     })
     .on('error', (error) => {
-      res.status(500).json({ success: false, error: error.message });
+      console.log('CSV parse error:', error);
+      res.status(500).json({ success: false, error: 'Error parsing CSV: ' + error.message });
     });
 });
 
